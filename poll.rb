@@ -16,6 +16,12 @@ Real browsers, though, seem immune to this, and continue to accept
 input. How are they doing this, and can it be emulated
 programmatically?
 
+Update: 2013-06-30:
+
+So it turns out, the vote_id has a pipe character in it ("|"). This is
+a character that normally needs to be escaped in a query string, BUT,
+if it is, the site doesn't return the second part.
+
 =end
 
 require 'net/http'
@@ -24,7 +30,7 @@ require 'watir'
 require 'mechanize'
 
 class Poll
-  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy
+  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string
 
   def initialize
     # The following parts were given in order to test the interaction
@@ -32,8 +38,10 @@ class Poll
     self.poll_id      = '7215679'
     self.answer_id    = '32748420'
     self.session_uri  = "http://polldaddy.com/n/f04601649c4e1a4b35354ba1a1bb6fdd/#{self.poll_id}?#{Time.now.to_i}"
-    self.target_url   = 'http://forourgloriousleader.weebly.com/poll-testing.html'
+    self.target_url   = 'http%3A//forourgloriousleader.weebly.com/poll-testing.html'
     self.polldaddy    = "http://polls.polldaddy.com/vote-js.php"
+    self.pipemask     = 'XXXPIPEXXX' # needed to get around something the server is doing
+    self.user_agent_string = 'Mozilla/5.0 (Windows NT 6.1; rv:10.0) Gecko/20100101 Firefox/10.0'
   end
   
   def vote_id
@@ -48,7 +56,8 @@ class Poll
     # It comes back in this form:
     #   "PDV_n7215679='50f2f74bcd|888';PD_vote7215679(0);"
     # What is needed is inbetween the single quotes.
-    self.sess.scan(/'(.+?)'/)
+    #
+    self.sess[/'(.+?)'/,1].tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Provides the URL needed to retrieve the poll information
@@ -60,115 +69,124 @@ class Poll
       o:       '',
       va:      0,
       cookie:  0,
+      # n:       self.vote_id.gsub(/\|/,self.pipemask),
       n:       self.vote_id,
       url:     self.target_url
     }
 
-    uri = URI.parse(self.polldaddy)
-    uri.query = URI.encode_www_form(query_string)
-    uri.to_s
+    # uri = URI.parse(self.polldaddy)
+    # uri.query = URI.encode_www_form(query_string)
+    # uri.query = my_query_maker(query_string)
+    uri = self.polldaddy + "?" + my_query_maker(query_string)
+    uri.to_s.tap{|t| STDERR.puts "Trace: #{caller[1]} returning #{t}"}
   end
 
   # Obtains the response to get the session key
   # to send in the final request.
   def sess
-    self.http_get(self.session_uri)
+    self.http_get(self.session_uri).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using Net::HTTP
   def poll
-    self.http_get(self.poll_url)
+    self.http_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using libcurl
   def poll2
-    self.curl_get(self.poll_url)
+    self.curl_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using the curl cli program
   def poll3
-    self.curl_cli_get(self.poll_url)
+    self.curl_cli_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using Watir Webdriver
   # The watir browser object is returned with
   # this instead of the poll response content
   def poll4
-    self.watir_get(self.poll_url)
+    self.watir_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using Mechanize
   def poll5
-    self.mech_get(self.poll_url)
+    self.mech_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Use Net::HTTP to retrieve the uri and return the body of the response
   def http_get(uri)
-    uri = URI.parse(uri)
     req = Net::HTTP::Get.new uri
-    req['user-agent'] = 'Mac Safari'
-    
-    body = ''
-
-    Net::HTTP.start(uri.hostname, uri.port) do |http|
+    temp_uri = URI.parse(self.polldaddy)
+    body=''
+    Net::HTTP.start(temp_uri.hostname, temp_uri.port) do |http|
       http.request(req) do |res|
         res.read_body do |segment|
           body << segment       # this will retrieve the parts if the response is chunked
         end
       end
     end
-    body
+    body.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   
   # Use libcurl to retrieve the uri and return the body of the response
   def curl_get(uri)
-    uri = URI.parse(uri).to_s
-    response = Curl.get(uri)
-    response.body_str
+    response = Curl.get(fix_uri(uri))
+    response.body_str.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   
   # Use the curl cli client to retrieve the uri and return the body of the response
   def curl_cli_get(uri)
-    uri = URI.parse(uri).to_s
     curl_cmd = `which curl`.chomp
     curl_options = {
       compressed: '',
       fail: '',
       silent: '',
-      :"user-agent" => 'Mac Safari'
+      :"user-agent" => "'#{self.user_agent_string}'" # doubly quoted to preserve single argument
     }
     
-    `#{curl_cmd} #{hash_to_cli_options(curl_options)} '#{uri}'`.chomp
+    cmd = "#{curl_cmd} #{hash_to_cli_options(curl_options)} '#{fix_uri(uri)}'"
+    STDERR.puts "Trace: #{caller[1]}: cmd: #{cmd}"
+    `#{cmd}`.chomp.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
 
   end
 
   # Use watir webdriver to naviage to the uri and return the watir browser
   def watir_get(uri)
-    uri = URI.parse(uri).to_s
-
     b = Watir::Browser.new :firefox
-    b.goto uri
-    b
+    b.goto fix_uri(uri)
+    b.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Use mechanize to retrieve the uri and return the body of the response
   def mech_get(uri)
-    uri = URI.parse(uri).to_s
     agent = Mechanize.new
     agent.ignore_bad_chunking= true # setting this to see if it will stay open to get the second part of response
-    page = agent.get uri
-    page.body
+    page = agent.get fix_uri(uri)
+    page.body.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
-  
-  private
   
   def hash_to_cli_options(options)
 
     options.reduce('') do |s,o|
       s << "--#{o.first} #{o.last} "
-    end
+    end.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
 
   end
+
+  def fix_uri(uri)
+    # uri.gsub(/#{self.pipemask}/,'|').gsub(/%2F/,'/').tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    uri
+  end
+
+  # bastards, bloody bastards. not escaping their query parms
+  def my_query_maker(q)
+    q.reduce([]) do |s, o|
+      s << "#{o.first}=#{o.last}"
+    end.join("&").tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+  end
+
+
 
 end
 

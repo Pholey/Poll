@@ -14,23 +14,30 @@ my $polldaddy    = "http://polls.polldaddy.com/vote-js.php";
 sub vote_id {
     my $s = sess();
     $s =~ m/'(.+?)'/;
-    return $1;
+    my $v = $1;
+    # $v =~ s/\|/XXXPIPXXX/;
+    return $v;
 }
 
 sub poll_url {
-    my %query_string;
-    $query_string{'p'} =       $poll_id;
-    $query_string{'b'} =       0;
-    $query_string{'a'} =       $answer_id,
-    $query_string{'o'} =       '';
-    $query_string{'va'} =      0;
-    $query_string{'cookie'} =  0;
-    $query_string{'n'} =       vote_id();
-    $query_string{'url'} =     $target_url;
+    my $vote_id = vote_id();
+    # my %query_string;
+    # $query_string{'p'} =       $poll_id;
+    # $query_string{'b'} =       0;
+    # $query_string{'a'} =       $answer_id,
+    # $query_string{'o'} =       '';
+    # $query_string{'va'} =      0;
+    # $query_string{'cookie'} =  0;
+    # $query_string{'n'} =       $vote_id;
+    # $query_string{'url'} =     $target_url;
 
-    my $uri = URI->new($polldaddy);
-    $uri->query_form(\%query_string);
-    return $uri->as_string;
+    my $url = $polldaddy . "?p=$poll_id&b=0&a=$answer_id&o=&va=0&cookie=0&n=$vote_id&url=$target_url$vote_id";
+    # $uri->query_form(\%query_string);
+    # my $url = $uri->as_string;
+    # $url =~ s/XXXPIPXXX/\|/;
+    # $url =~ s/%2F/\//g;
+    print STDERR "poll_url: $url\n";
+    return $url;
 }
 
 sub sess {
@@ -48,8 +55,6 @@ sub fetch_url {
     return $response->content;
 }
 
-
-print poll_url(), "\n";
 print poll(), "\n";
 
 
