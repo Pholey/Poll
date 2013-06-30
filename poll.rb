@@ -42,6 +42,13 @@ class Poll
     self.polldaddy    = "http://polls.polldaddy.com/vote-js.php"
     self.pipemask     = 'XXXPIPEXXX' # needed to get around something the server is doing
     self.user_agent_string = 'Mozilla/5.0 (Windows NT 6.1; rv:10.0) Gecko/20100101 Firefox/10.0'
+    @additional_headers = {
+      #'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language' => 'en-US,en;q=0.5'
+      #'Accept-Encoding' => 'gzip, deflate',
+      #'Connection' => 'keep-alive'
+    }
+
   end
   
   def vote_id
@@ -117,6 +124,10 @@ class Poll
   # Use Net::HTTP to retrieve the uri and return the body of the response
   def http_get(uri)
     req = Net::HTTP::Get.new uri
+    @additional_headers.keys.each do |k|
+      req[k] = @additional_headers[k]
+    end
+    STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
     temp_uri = URI.parse(self.polldaddy)
     body=''
     Net::HTTP.start(temp_uri.hostname, temp_uri.port) do |http|
@@ -131,7 +142,13 @@ class Poll
   
   # Use libcurl to retrieve the uri and return the body of the response
   def curl_get(uri)
-    response = Curl.get(fix_uri(uri))
+    #response = Curl.get(fix_uri(uri))
+    response = Curl::Easy.perform(fix_uri(uri)) do |curl|
+      @additional_headers.keys.each do |k|
+        curl.headers[k] = @additional_headers[k]
+      end
+    end
+    
     response.body_str.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   
