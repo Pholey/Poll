@@ -11,7 +11,7 @@ class Poll
     self.session_uri  = "http://polldaddy.com/n/f04601649c4e1a4b35354ba1a1bb6fdd/#{self.poll_id}?#{Time.now.to_i}"
     self.target_url   = 'http%3A//forourgloriousleader.weebly.com/poll-testing.html'
     self.polldaddy    = "http://polls.polldaddy.com/vote-js.php"
-    self.pipemask     = 'XXXPIPEXXX' 
+    self.pipemask     = 'XXXPIPEXXX' # needed to get around something the server is doing
     self.user_agent_string = 'Mozilla/5.0 (Windows NT 6.1; rv:10.0) Gecko/20100101 Firefox/10.0'
     @additional_headers = {
       'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -39,7 +39,7 @@ class Poll
     #   "PDV_n7215679='50f2f74bcd|888';PD_vote7215679(0);"
     # What is needed is inbetween the single quotes.
     #
-    self.sess[/'(.+?)'/,1].tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    self.sess[/'(.+?)'/,1]#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Provides the URL needed to retrieve the poll information
@@ -60,18 +60,18 @@ class Poll
     # uri.query = URI.encode_www_form(query_string)
     # uri.query = my_query_maker(query_string)
     uri = self.polldaddy + "?" + my_query_maker(query_string)
-    uri.to_s.tap{|t| STDERR.puts "Trace: #{caller[1]} returning #{t}"}
+    uri.to_s#.tap{|t| STDERR.puts "Trace: #{caller[1]} returning #{t}"}
   end
 
   # Obtains the response to get the session key
   # to send in the final request.
   def sess
-    self.http_get(self.session_uri).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    self.http_get(self.session_uri)#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
   # Get the poll response using Net::HTTP
   def submit
-    self.http_get(self.poll_url).tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    self.http_get(self.poll_url)#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   # Use Net::HTTP to retrieve the uri and return the body of the response
   def http_get(uri)
@@ -79,7 +79,7 @@ class Poll
     @additional_headers.keys.each do |k|
       req[k] = @additional_headers[k]
     end
-    STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
+    #STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
     temp_uri = URI.parse(self.polldaddy)
     body=''
     Net::HTTP.start(temp_uri.hostname, temp_uri.port) do |http|
@@ -89,14 +89,14 @@ class Poll
         end
       end
     end
-    body.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    body#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   
   def hash_to_cli_options(options)
 
     options.reduce('') do |s,o|
       s << "--#{o.first} #{o.last} "
-    end.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    end#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
 
   end
 
@@ -108,7 +108,7 @@ class Poll
   def my_query_maker(q)
     q.reduce([]) do |s, o|
       s << "#{o.first}=#{o.last}"
-    end.join("&").tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    end.join("&")#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
 
 
