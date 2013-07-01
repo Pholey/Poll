@@ -1,7 +1,8 @@
 require 'net/http'
 
 class Poll
-  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string
+  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string, 
+  :proxyhost, :proxyport 
 
   def initialize
     # The following parts were given in order to test the interaction
@@ -82,7 +83,7 @@ class Poll
     #STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
     temp_uri = URI.parse(self.polldaddy)
     body=''
-    Net::HTTP.start(temp_uri.hostname, temp_uri.port) do |http|
+    Net::HTTP.start(temp_uri.hostname, temp_uri.port, proxyhost, proxyport) do |http| 
       http.request(req) do |res|
         res.read_body do |segment|
           body << segment       # this will retrieve the parts if the response is chunked
