@@ -1,4 +1,5 @@
 require 'net/http'
+require 'socksify/http'
 
 class Poll
   attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string, 
@@ -93,6 +94,28 @@ class Poll
     body#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
   
+  def tor_submit
+    self.tor_get(self.poll_url)#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+  end
+
+  def tor_get(uri)
+    req = Net::HTTP::Get.new uri
+    @additional_headers.keys.each do |k|
+      req[k] = @additional_headers[k]
+    end
+    #STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
+    temp_uri = URI.parse(self.polldaddy)
+    body=''
+    Net::HTTP.SOCKSProxy('127.0.0.1', 9050).start(temp_uri.hostname, temp_uri.port, proxyhost, proxyport) do |http|
+      http.request(req) do |res|
+        res.read_body do |segment|
+          body << segment # this will retrieve the parts if the response is chunked
+        end
+      end
+    end
+    body#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+  end
+
   def hash_to_cli_options(options)
 
     options.reduce('') do |s,o|
