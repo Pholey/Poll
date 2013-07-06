@@ -1,24 +1,23 @@
-require 'net/http'
-require 'socksify/http'
+['net/http','socksify/http','net/telnet'].map{|l| require l}
 
 class Poll
-  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string, 
-  :proxyhost, :proxyport 
+  attr_accessor :poll_id, :answer_id, :session_uri, :target_url, :polldaddy, :pipemask, :user_agent_string,
+  :proxyhost, :proxyport
 
   def initialize
     # The following parts were given in order to test the interaction
     # with polldaddy.com
-    self.poll_id      = '7215679'
-    self.answer_id    = '32748420'
-    self.session_uri  = "http://polldaddy.com/n/f04601649c4e1a4b35354ba1a1bb6fdd/#{self.poll_id}?#{Time.now.to_i}"
-    self.target_url   = 'http%3A//forourgloriousleader.weebly.com/poll-testing.html'
-    self.polldaddy    = "http://polls.polldaddy.com/vote-js.php"
-    self.pipemask     = 'XXXPIPEXXX' # needed to get around something the server is doing
+    self.poll_id = '7215679'
+    self.answer_id = '32748420'
+    self.session_uri = "http://polldaddy.com/n/f04601649c4e1a4b35354ba1a1bb6fdd/#{self.poll_id}?#{Time.now.to_i}"
+    self.target_url = 'http%3A//forourgloriousleader.weebly.com/poll-testing.html'
+    self.polldaddy = "http://polls.polldaddy.com/vote-js.php"
+    self.pipemask = 'XXXPIPEXXX' # needed to get around something the server is doing
     self.user_agent_string = 'Mozilla/5.0 (Windows NT 6.1; rv:10.0) Gecko/20100101 Firefox/10.0'
     @additional_headers = {
       'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language' => 'en-US,en;q=0.5',
-      'Accept-Encoding' => 'gzip, deflate',
+      'Accept-Encoding' => 'deflate',
       'Connection' => 'keep-alive'
       #On my system every single one was needed, rather than just the
     }
@@ -38,7 +37,7 @@ class Poll
     
     # The actual needed data is a bit easier to extract.
     # It comes back in this form:
-    #   "PDV_n7215679='50f2f74bcd|888';PD_vote7215679(0);"
+    # "PDV_n7215679='50f2f74bcd|888';PD_vote7215679(0);"
     # What is needed is inbetween the single quotes.
     #
     self.sess[/'(.+?)'/,1]#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
@@ -47,15 +46,15 @@ class Poll
   # Provides the URL needed to retrieve the poll information
   def poll_url
     query_string = {
-      p:       self.poll_id,
-      b:       0,
-      a:       self.answer_id,
-      o:       '',
-      va:      0,
-      cookie:  0,
-      # n:       self.vote_id.gsub(/\|/,self.pipemask),
-      n:       self.vote_id,
-      url:     self.target_url
+      p: self.poll_id,
+      b: 0,
+      a: self.answer_id,
+      o: '',
+      va: 0,
+      cookie: 0,
+      # n: self.vote_id.gsub(/\|/,self.pipemask),
+      n: self.vote_id,
+      url: self.target_url
     }
 
     # uri = URI.parse(self.polldaddy)
@@ -63,6 +62,24 @@ class Poll
     # uri.query = my_query_maker(query_string)
     uri = self.polldaddy + "?" + my_query_maker(query_string)
     uri.to_s#.tap{|t| STDERR.puts "Trace: #{caller[1]} returning #{t}"}
+  end
+
+#define other users with this to create a poll URL, submit with http_get(c_poll_url) or tor_get(c_poll_url)
+  def c_poll_url(poll_id, answer_id, custom_vote_hash, referrer_URL) 
+    query_string = {
+      p: poll_id,
+      b: 0,
+      a: answer_id,
+      o: '',
+      va: 0,
+      cookie: 0,
+      n: self.c_vote_id(custom_vote_hash),
+      url: referrer_URL
+    }
+
+
+    uri = self.polldaddy + "?" + my_query_maker(query_string)
+    uri.to_s
   end
 
   # Obtains the response to get the session key
@@ -84,16 +101,16 @@ class Poll
     #STDERR.puts "Trace: #{caller[0]} req: #{req.inspect}"
     temp_uri = URI.parse(self.polldaddy)
     body=''
-    Net::HTTP.start(temp_uri.hostname, temp_uri.port, proxyhost, proxyport) do |http| 
+    Net::HTTP.start(temp_uri.hostname, temp_uri.port, proxyhost, proxyport) do |http|
       http.request(req) do |res|
         res.read_body do |segment|
-          body << segment       # this will retrieve the parts if the response is chunked
+          body << segment # this will retrieve the parts if the response is chunked
         end
       end
     end
     body#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
-  
+
   def tor_submit
     self.tor_get(self.poll_url)#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
@@ -115,6 +132,21 @@ class Poll
     end
     body#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
   end
+  
+  def new_ip(control_port, password)
+    localhost = Net::Telnet::new("Host" => "localhost", "Port" => control_port.to_i, "Timeout" => 10, "Prompt" => /250 OK\n/)
+    localhost.cmd('AUTHENTICATE "#{password}"') { |c| print c; throw "Cannot authenticate to Tor" if c != "250 OK\n" }
+    localhost.cmd('signal NEWNYM') { |c| print c; throw "Cannot switch Tor to new route" if c != "250 OK\n" }
+    localhost.close
+  end
+
+#defines a custom vote session ID for if more than one person is wanted
+  def c_vote_id(hash)
+    sess_uri = "http://polldaddy.com/n/#{hash}/#{self.poll_id}?#{Time.now.to_i}"
+    raw_id = self.http_get(sess_uri)
+    raw_id[/'(.+?)'/,1]
+  end
+
 
   def hash_to_cli_options(options)
 
@@ -138,5 +170,6 @@ class Poll
 
 
 end
+
 
 
