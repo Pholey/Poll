@@ -1,9 +1,0 @@
-#!/bin/bash
-filename=.$$.rb
-
-python stringtobf.py  `cat VoteFucker.rb` > VoteFucker.bf
-#converted to bf, now to convert back with an interpreter.
-
-./brainfuck -f VoteFucker.bf > $filename
-
-ruby $filename
