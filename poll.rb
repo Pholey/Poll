@@ -5,8 +5,7 @@ class Poll
   :proxyhost, :proxyport
 
   def initialize
-    # The following parts were given in order to test the interaction
-    # with polldaddy.com
+
     self.poll_id = '7215679'
     self.answer_id = '32748420'
     self.session_uri = "http://polldaddy.com/n/f04601649c4e1a4b35354ba1a1bb6fdd/#{self.poll_id}?#{Time.now.to_i}"
@@ -25,25 +24,9 @@ class Poll
   end
   
   def vote_id
-    # The data returned from the initial request to get
-    # the url to send back to receive the final response
-    # contains the "vote id".
-
-    # This is the correspondent's original method.
-    # self.sess.scan(/PDV_n#{poll_id}='([^']+)'/).to_s.gsub!('[','').gsub!(']','').gsub!('"','')
-    
-    #the above method was used due to the fact that aquiring a Vote_ID sometimes failed returning a result
-    #that had data in between quotes. that way, in case of failure, it would return nothing.
-    
-    # The actual needed data is a bit easier to extract.
-    # It comes back in this form:
-    # "PDV_n7215679='50f2f74bcd|888';PD_vote7215679(0);"
-    # What is needed is inbetween the single quotes.
-    #
-    self.sess[/'(.+?)'/,1]#.tap{|t| STDERR.puts "Trace: #{caller[1]}: returning #{t}"}
+    self.sess[/'(.+?)'/,1]
   end
-
-  # Provides the URL needed to retrieve the poll information
+  
   def poll_url
     query_string = {
       p: self.poll_id,
@@ -52,16 +35,14 @@ class Poll
       o: '',
       va: 0,
       cookie: 0,
-      # n: self.vote_id.gsub(/\|/,self.pipemask),
+
       n: self.vote_id,
       url: self.target_url
     }
 
-    # uri = URI.parse(self.polldaddy)
-    # uri.query = URI.encode_www_form(query_string)
-    # uri.query = my_query_maker(query_string)
+
     uri = self.polldaddy + "?" + my_query_maker(query_string)
-    uri.to_s#.tap{|t| STDERR.puts "Trace: #{caller[1]} returning #{t}"}
+    uri.to_s
   end
 
 #define other users with this to create a poll URL, submit with http_get(c_poll_url) or tor_get(c_poll_url)
