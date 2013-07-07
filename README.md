@@ -14,8 +14,11 @@ Brainfuck:
 
 Since brainfuck only has 8 items in it's syntax, this makes it impossible for http GET requests, meaning that
 it is not possible to retrieve the data on it's own. My solution was using ruby with the brainfuck interpreter
-in order to have our beautiful brainfuck syntax, but the useage of ruby. i intend to release my native interpreter
-soon.
+in order to have our beautiful brainfuck syntax, but the useage of ruby. The native interpreter packaged with
+the brainfuck file is my own, which can be found here:
+
+https://github.com/Pholey/BrainRuck
+
 
 Other esoteric languages:
 -------------------------
