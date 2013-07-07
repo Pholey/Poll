@@ -1,6 +1,3 @@
 #!/bin/bash
-filename=.$$.rb
+./brainfuck poll.bf
 
-./brainfuck -f poll.bf > $filename
-
-ruby $filename

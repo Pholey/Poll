@@ -1,0 +1,2 @@
+args = ARGV.slice(0 ..-1).join(" ")
+puts args
