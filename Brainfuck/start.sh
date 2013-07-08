@@ -1,3 +1,3 @@
 #!/bin/bash
-./brainfuck poll.bf
+./brainfuck --to-rb poll.bf
 
